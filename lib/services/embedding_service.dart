@@ -1,17 +1,14 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:sportmaster_ai/config/app_config.dart';
 
 class EmbeddingService {
-  final String _baseUrl;
-  final String _apiKey;
+  final String _baseUrl = AppConfig.genericApiBaseUrl; // Assuming embedding service uses the generic API
+  final String _apiKey = AppConfig.genericApiKey;
   
-  EmbeddingService({
-    required String baseUrl,
-    required String apiKey,
-  }) : 
-    _baseUrl = baseUrl,
-    _apiKey = apiKey;
-  
+  // Constructor can be simplified
+  // EmbeddingService();
+
   // Gera embeddings para texto usando modelo sentence-transformers
   Future<List<double>> generateEmbedding(String text) async {
     final response = await http.post(
@@ -26,11 +23,27 @@ class EmbeddingService {
       }),
     );
     
+    // Add .timeout(Duration(seconds: 15)) here for production
+    // Add general try-catch here to log to MonitoringService for any other exception
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return List<double>.from(data['embedding']);
+      try {
+        final data = jsonDecode(response.body);
+        if (data is Map<String, dynamic> && data.containsKey('embedding') && data['embedding'] is List) {
+          return List<double>.from(data['embedding'].map((e) => (e as num).toDouble()));
+        } else {
+          // Consider logging this error to MonitoringService
+          print('Unexpected embedding response structure: ${response.body}');
+          throw Exception('Unexpected embedding response structure');
+        }
+      } on FormatException catch (e, stackTrace) {
+        // Consider logging this error to MonitoringService
+        print('Malformed JSON for embedding response: ${response.body}, Error: $e');
+        throw Exception('Malformed JSON for embedding response');
+      }
     } else {
-      throw Exception('Failed to generate embedding: ${response.body}');
+      // Consider logging this error to MonitoringService, including text, response.statusCode, response.body
+      print('Failed to generate embedding for text "$text": ${response.statusCode} ${response.body}');
+      throw Exception('Failed to generate embedding. Status: ${response.statusCode}');
     }
   }
   
@@ -51,7 +64,7 @@ class EmbeddingService {
   Future<List<double>> generatePhysicalEmbedding(Map<String, dynamic> physicalData) async {
     // Converter dados físicos em texto descritivo
     final description = _buildPhysicalDescription(physicalData);
-    return generateEmbedding(description);
+    return getCachedEmbedding(description); // Use cache for physical embeddings
   }
   
   String _buildPhysicalDescription(Map<String, dynamic> physicalData) {

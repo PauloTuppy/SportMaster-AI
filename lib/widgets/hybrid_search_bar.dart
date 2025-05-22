@@ -17,6 +17,7 @@ class HybridSearchBar extends StatefulWidget {
 class _HybridSearchBarState extends State<HybridSearchBar> {
   final TextEditingController _searchController = TextEditingController();
   bool _isSearching = false;
+  Set<String> _selectedFilters = {}; // State for selected filters
   
   @override
   void dispose() {
@@ -87,70 +88,75 @@ class _HybridSearchBarState extends State<HybridSearchBar> {
     switch (widget.modalidade) {
       case 'football':
         chips.addAll([
-          FilterChip(
-            label: Text('Atacantes'),
-            onSelected: (selected) {
-              // Aplicar filtro
-            },
-          ),
-          FilterChip(
-            label: Text('Meio-campistas'),
-            onSelected: (selected) {
-              // Aplicar filtro
-            },
-          ),
+          _buildChip('Atacantes'),
+          _buildChip('Meio-campistas'),
+          // Add more football specific chips if needed
         ]);
         break;
       case 'mma':
         chips.addAll([
-          FilterChip(
-            label: Text('Peso Leve'),
-            onSelected: (selected) {
-              // Aplicar filtro
-            },
-          ),
-          FilterChip(
-            label: Text('Peso Médio'),
-            onSelected: (selected) {
-              // Aplicar filtro
-            },
-          ),
+          _buildChip('Peso Leve'),
+          _buildChip('Peso Médio'),
+          // Add more MMA specific chips if needed
         ]);
         break;
       case 'bodybuilding':
         chips.addAll([
-          FilterChip(
-            label: Text('Classic Physique'),
-            onSelected: (selected) {
-              // Aplicar filtro
-            },
-          ),
-          FilterChip(
-            label: Text('Men\'s Physique'),
-            onSelected: (selected) {
-              // Aplicar filtro
+          _buildChip('Classic Physique'),
+          _buildChip('Men\'s Physique'),
+          // Add more bodybuilding specific chips if needed
             },
           ),
         ]);
         break;
     }
-    
+    // Add default case or handle unknown modalidade if necessary
     return chips;
+  }
+
+  Widget _buildChip(String label) {
+    return FilterChip(
+      label: Text(label),
+      selected: _selectedFilters.contains(label),
+      onSelected: (bool selected) {
+        setState(() {
+          if (selected) {
+            _selectedFilters.add(label);
+          } else {
+            _selectedFilters.remove(label);
+          }
+        });
+        // TODO: Decide if selecting a filter should immediately trigger a search
+        // e.g., _performSearch(_searchController.text);
+        // This might require widget.onSearch to accept filter data.
+      },
+    );
   }
   
   Future<void> _performSearch(String query) async {
-    if (query.isEmpty) return;
+    // Consider also passing _selectedFilters to widget.onSearch
+    // For now, it only passes the query.
+    // if (query.isEmpty && _selectedFilters.isEmpty) return; // Or some other logic for empty search
+    if (query.isEmpty && _selectedFilters.isEmpty && mounted) { // Check mounted before setState
+       // If query and filters are empty, maybe clear results or do nothing
+      return;
+    }
     
-    setState(() {
-      _isSearching = true;
-    });
+    if (mounted) { // Check mounted before setState
+      setState(() {
+        _isSearching = true;
+      });
+    }
     
     try {
-      await widget.onSearch(query);
+      // Modify widget.onSearch to accept filters: await widget.onSearch(query, _selectedFilters);
+      await widget.onSearch(query); 
     } finally {
-      setState(() {
-        _isSearching = false;
-      });
+      if (mounted) { // Check mounted before setState
+        setState(() {
+          _isSearching = false;
+        });
+      }
     }
   }
 }

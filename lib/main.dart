@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:sportmaster_ai/screens/home_screen.dart';
-import 'package:sportmaster_ai/services/agent_service.dart';
 
 void main() {
   runApp(SportMasterApp());

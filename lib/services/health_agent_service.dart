@@ -4,23 +4,21 @@ import 'package:sportmaster_ai/services/opensearch_service.dart';
 import 'package:sportmaster_ai/services/medical_data_service.dart';
 import 'package:sportmaster_ai/services/monitoring_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sportmaster_ai/config/app_config.dart';
 
 class HealthAgentService {
-  final String _baseUrl;
-  final String _apiKey;
+  final String _baseUrl = AppConfig.genericApiBaseUrl; // Assuming health agent uses the generic API
+  final String _apiKey = AppConfig.genericApiKey;
   final OpenSearchService _openSearchService;
   final MedicalDataService _medicalDataService;
   final MonitoringService _monitoringService;
   
   HealthAgentService({
-    required String baseUrl,
-    required String apiKey,
+    // baseUrl and apiKey are now sourced from AppConfig
     required OpenSearchService openSearchService,
     required MedicalDataService medicalDataService,
     required MonitoringService monitoringService,
   }) : 
-    _baseUrl = baseUrl,
-    _apiKey = apiKey,
     _openSearchService = openSearchService,
     _medicalDataService = medicalDataService,
     _monitoringService = monitoringService;
@@ -74,18 +72,28 @@ class HealthAgentService {
         
         return recommendations;
       } else {
-        throw Exception('Failed to analyze exams: ${response.statusCode}');
+        String errorBody = response.body;
+        try { errorBody = jsonDecode(response.body)['message'] ?? response.body; } catch (_) {}
+        _monitoringService.logError(
+          'HEALTH_ANALYSIS_API_ERROR',
+          'Failed to analyze exams. Status: ${response.statusCode}, Body: $errorBody',
+          StackTrace.current // This might not be the original stack trace from http client
+        );
+        throw Exception('Failed to analyze exams. Status: ${response.statusCode}, Message: $errorBody');
       }
-    } catch (e) {
+    } catch (e, stackTrace) { // Catching stackTrace here
       _monitoringService.logError(
         'HEALTH_ANALYSIS_ERROR',
         'Error analyzing exams: $e',
-        StackTrace.current,
+        'HEALTH_ANALYSIS_ERROR',
+        'Error analyzing exams: $e',
+        stackTrace, // Use captured stackTrace
       );
       
       // Fallback: análise local básica
       return _localBasicAnalysis(await _medicalDataService.getUserExams());
     }
+    // Add .timeout(Duration(seconds: 30)) to http.post call for production for health analysis
   }
   
   // Verificar interações medicamentosas e contraindicações
@@ -93,6 +101,9 @@ class HealthAgentService {
     Map<String, dynamic> supplements,
     Map<String, dynamic> exams,
   ) async {
+    if (supplements.isEmpty) {
+      return {}; // No supplements to check
+    }
     try {
       // Buscar informações de suplementos no OpenSearch
       final supplementNames = supplements.keys.toList();
@@ -140,9 +151,13 @@ class HealthAgentService {
       _monitoringService.logError(
         'SAFETY_CHECK_ERROR',
         'Error checking supplement safety: $e',
-        StackTrace.current,
+        stackTrace, // Use captured stackTrace
       );
-      return {};
+      // Propagate the error or return a specific error indicator
+      // For example, return {'error': 'Failed to check supplement safety due to: $e'};
+      // Or rethrow Exception('Failed to check supplement safety: $e');
+      // Returning empty for now to maintain original behavior but this is risky.
+      return {'error': 'Could not verify supplement safety. Please consult a doctor.'};
     }
   }
   

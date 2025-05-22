@@ -1,6 +1,3 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-
 abstract class SportAgent {
   Future<Map<String, dynamic>> analyzePerformance(Map<String, dynamic> userData);
   Future<Map<String, dynamic>> getRecommendations(Map<String, dynamic> analysisData);

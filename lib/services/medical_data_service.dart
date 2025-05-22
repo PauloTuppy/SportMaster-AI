@@ -6,21 +6,19 @@ import 'package:health/health.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sportmaster_ai/services/opensearch_service.dart';
 import 'package:sportmaster_ai/services/monitoring_service.dart';
+import 'package:sportmaster_ai/config/app_config.dart';
 
 class MedicalDataService {
-  final String _baseUrl;
-  final String _apiKey;
+  final String _baseUrl = AppConfig.genericApiBaseUrl; // Assuming medical data processing uses the generic API
+  final String _apiKey = AppConfig.genericApiKey;
   final OpenSearchService _openSearchService;
   final MonitoringService _monitoringService;
   
   MedicalDataService({
-    required String baseUrl,
-    required String apiKey,
+    // baseUrl and apiKey are now sourced from AppConfig
     required OpenSearchService openSearchService,
     required MonitoringService monitoringService,
   }) : 
-    _baseUrl = baseUrl,
-    _apiKey = apiKey,
     _openSearchService = openSearchService,
     _monitoringService = monitoringService;
   
@@ -56,18 +54,31 @@ class MedicalDataService {
         // Salvar dados no OpenSearch
         await _saveExamDataToOpenSearch(parsedData);
         
+        final responseData = await response.stream.bytesToString(); // Read response body here
+        final parsedData = jsonDecode(responseData);
+        
+        // Salvar dados no OpenSearch
+        await _saveExamDataToOpenSearch(parsedData);
+        
         return parsedData;
       } else {
-        throw Exception('Failed to process lab report: ${response.statusCode}');
+        final errorBody = await response.stream.bytesToString();
+        _monitoringService.logError(
+          'OCR_PROCESSING_ERROR',
+          'Failed to process lab report image. Status: ${response.statusCode}, Body: $errorBody',
+          StackTrace.current, // This might not be the original stack trace
+        );
+        throw Exception('Failed to process lab report image. Status: ${response.statusCode}, Body: $errorBody');
       }
-    } catch (e) {
+    } catch (e, stackTrace) { // Catching stackTrace here
       _monitoringService.logError(
         'OCR_PROCESSING_ERROR',
         'Error processing lab report image: $e',
-        StackTrace.current,
+        stackTrace, // Use captured stackTrace
       );
       throw Exception('Failed to process lab report: $e');
     }
+    // Add .timeout(Duration(seconds: 90)) to request.send() for production
   }
   
   // Processar PDF de exame
@@ -102,18 +113,31 @@ class MedicalDataService {
         // Salvar dados no OpenSearch
         await _saveExamDataToOpenSearch(parsedData);
         
+        final responseData = await response.stream.bytesToString(); // Read response body here
+        final parsedData = jsonDecode(responseData);
+        
+        // Salvar dados no OpenSearch
+        await _saveExamDataToOpenSearch(parsedData);
+        
         return parsedData;
       } else {
-        throw Exception('Failed to process lab report PDF: ${response.statusCode}');
+        final errorBody = await response.stream.bytesToString();
+        _monitoringService.logError(
+          'PDF_PROCESSING_ERROR',
+          'Failed to process lab report PDF. Status: ${response.statusCode}, Body: $errorBody',
+          StackTrace.current, // This might not be the original stack trace
+        );
+        throw Exception('Failed to process lab report PDF. Status: ${response.statusCode}, Body: $errorBody');
       }
-    } catch (e) {
+    } catch (e, stackTrace) { // Catching stackTrace here
       _monitoringService.logError(
         'PDF_PROCESSING_ERROR',
         'Error processing lab report PDF: $e',
-        StackTrace.current,
+        stackTrace, // Use captured stackTrace
       );
       throw Exception('Failed to process lab report PDF: $e');
     }
+    // Add .timeout(Duration(seconds: 90)) to request.send() for production
   }
   
   // Obter dados de saúde do HealthKit/Google Fit
@@ -247,8 +271,9 @@ class MedicalDataService {
       _monitoringService.logError(
         'OPENSEARCH_ERROR',
         'Error saving exam data to OpenSearch: $e',
-        StackTrace.current,
+        stackTrace, // Use captured stackTrace
       );
+      throw Exception('Failed to save exam data: $e'); // Re-throw
     }
   }
   
@@ -284,8 +309,9 @@ class MedicalDataService {
       _monitoringService.logError(
         'OPENSEARCH_ERROR',
         'Error saving health data to OpenSearch: $e',
-        StackTrace.current,
+        stackTrace, // Use captured stackTrace
       );
+      throw Exception('Failed to save health data: $e'); // Re-throw
     }
   }
   
@@ -321,11 +347,23 @@ class MedicalDataService {
   // Extrair valor numérico de um resultado de exame
   double _parseExamValue(String valueStr) {
     try {
-      // Remover unidades e caracteres não numéricos
-      final numericStr = valueStr.replaceAll(RegExp(r'[^0-9\.]'), '');
+      // Remover unidades e caracteres não numéricos, permitir '-' no início para negativos
+      final numericStr = valueStr.replaceAll(RegExp(r'[^\-0-9\.]'), '');
+      // Tratamento adicional para evitar múltiplos pontos decimais ou traços mal posicionados
+      if (numericStr.isEmpty || numericStr == '-' || numericStr == '.') return 0.0;
+      if (numericStr.indexOf('.') != numericStr.lastIndexOf('.')) { // Mais de um ponto decimal
+         // Tenta pegar a parte antes do segundo ponto
+         final parts = numericStr.split('.');
+         return double.parse('${parts[0]}.${parts[1]}');
+      }
       return double.parse(numericStr);
-    } catch (e) {
-      return 0.0;
+    } catch (e, stackTrace) {
+      _monitoringService.logError(
+        'PARSE_EXAM_VALUE_ERROR',
+        'Error parsing exam value "$valueStr": $e',
+        stackTrace,
+      );
+      return 0.0; // Retornar 0.0 em caso de erro, mas logar o problema
     }
   }
   

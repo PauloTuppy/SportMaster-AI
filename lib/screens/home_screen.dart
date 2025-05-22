@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sportmaster_ai/screens/football_screen.dart';
-import 'package:sportmaster_ai/screens/mma_screen.dart';
-import 'package:sportmaster_ai/screens/bodybuilding_screen.dart';
+import 'package:sportmaster_ai/screens/mma/mma_dashboard.dart';
+import 'package:sportmaster_ai/screens/bodybuilding/bodybuilding_dashboard.dart';
 
 class HomeScreen extends StatelessWidget {
   @override
@@ -14,12 +14,12 @@ class HomeScreen extends StatelessWidget {
         crossAxisCount: 2,
         padding: EdgeInsets.all(16.0),
         children: [
-          _buildSportCard(context, 'Futebol', Icons.sports_soccer, 
+          _buildSportCard(context, 'Futebol', Icons.sports_soccer,
               () => Navigator.push(context, MaterialPageRoute(builder: (_) => FootballScreen()))),
-          _buildSportCard(context, 'MMA', Icons.sports_mma, 
-              () => Navigator.push(context, MaterialPageRoute(builder: (_) => MMAScreen()))),
-          _buildSportCard(context, 'Fisiculturismo', Icons.fitness_center, 
-              () => Navigator.push(context, MaterialPageRoute(builder: (_) => BodybuildingScreen()))),
+          _buildSportCard(context, 'MMA', Icons.sports_mma,
+              () => Navigator.push(context, MaterialPageRoute(builder: (_) => MMADashboard()))),
+          _buildSportCard(context, 'Fisiculturismo', Icons.fitness_center,
+              () => Navigator.push(context, MaterialPageRoute(builder: (_) => BodybuildingDashboard()))),
         ],
       ),
     );

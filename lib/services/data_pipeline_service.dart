@@ -1,18 +1,15 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sportmaster_ai/config/app_config.dart';
 
 class DataPipelineService {
-  final String _baseUrl;
-  final String _apiKey;
+  final String _baseUrl = AppConfig.genericApiBaseUrl; // Assuming data pipeline uses the generic API
+  final String _apiKey = AppConfig.genericApiKey;
   
-  DataPipelineService({
-    required String baseUrl,
-    required String apiKey,
-  }) : 
-    _baseUrl = baseUrl,
-    _apiKey = apiKey;
-  
+  // Constructor can be simplified
+  // DataPipelineService();
+
   // Normalização de dados
   double normalizeSpeed(double speedMph) {
     return speedMph * 1.60934; // Conversão de mph para km/h
@@ -32,7 +29,16 @@ class DataPipelineService {
     final String? jsonData = prefs.getString(key);
     
     if (jsonData != null) {
-      return json.decode(jsonData) as T;
+      try {
+        return json.decode(jsonData) as T;
+      } catch (e, stackTrace) {
+        // Consider logging this error to MonitoringService
+        print('Error decoding cached data for key $key: $e');
+        // Optionally, remove the corrupted cache entry
+        // await prefs.remove(key);
+        // await prefs.remove('${key}_expiry');
+        return null;
+      }
     }
     
     return null;
@@ -92,10 +98,12 @@ class DataPipelineService {
       
       return data;
     } else {
-      throw Exception('Failed to load football player data');
+      // Consider logging this error to MonitoringService, including playerId, response.statusCode, response.body
+      print('Failed to load football player data for $playerId: ${response.statusCode} ${response.body}');
+      throw Exception('Failed to load football player data for $playerId. Status: ${response.statusCode}');
     }
   }
-  
+  // Add .timeout(Duration(seconds: 10)) to http.get call for production
   // Coleta de dados de MMA
   Future<Map<String, dynamic>> getMMAFighterData(String fighterId) async {
     // Verificar cache primeiro
@@ -134,10 +142,12 @@ class DataPipelineService {
       
       return data;
     } else {
-      throw Exception('Failed to load MMA fighter data');
+      // Consider logging this error to MonitoringService, including fighterId, response.statusCode, response.body
+      print('Failed to load MMA fighter data for $fighterId: ${response.statusCode} ${response.body}');
+      throw Exception('Failed to load MMA fighter data for $fighterId. Status: ${response.statusCode}');
     }
   }
-  
+  // Add .timeout(Duration(seconds: 10)) to http.get call for production
   // Coleta de dados de fisiculturismo
   Future<Map<String, dynamic>> getBodybuilderData(String bodybuilderId) async {
     // Verificar cache primeiro
@@ -176,7 +186,10 @@ class DataPipelineService {
       
       return data;
     } else {
-      throw Exception('Failed to load bodybuilder data');
+      // Consider logging this error to MonitoringService, including bodybuilderId, response.statusCode, response.body
+      print('Failed to load bodybuilder data for $bodybuilderId: ${response.statusCode} ${response.body}');
+      throw Exception('Failed to load bodybuilder data for $bodybuilderId. Status: ${response.statusCode}');
     }
   }
+  // Add .timeout(Duration(seconds: 10)) to http.get call for production
 }

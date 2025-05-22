@@ -18,6 +18,12 @@ class _VirtualCoachScreenState extends State<VirtualCoachScreen> {
   final TextEditingController _messageController = TextEditingController();
   final List<Map<String, String>> _chatMessages = [];
   bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    super.dispose();
+  }
   
   @override
   Widget build(BuildContext context) {

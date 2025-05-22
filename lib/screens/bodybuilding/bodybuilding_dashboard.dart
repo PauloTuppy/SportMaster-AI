@@ -22,28 +22,23 @@ class _BodybuildingDashboardState extends State<BodybuildingDashboard> {
     super.initState();
     
     // Inicializar serviços
-    final openSearchService = OpenSearchService(
-      endpoint: 'https://search-sportmaster-xyz.us-east-1.es.amazonaws.com',
-      region: 'us-east-1',
-      accessKey: 'AKIAXXXXXXXXXXXXXXXX',
-      secretKey: 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
-    );
+    // Services now fetch their config from AppConfig directly.
+    final openSearchService = OpenSearchService();
+    final embeddingService = EmbeddingService();
+    final imageAnalysisService = ImageAnalysisService();
+    final socialMediaService = SocialMediaService();
     
-    final embeddingService = EmbeddingService(
-      baseUrl: 'https://api.sportmaster.ai',
-      apiKey: 'sk-XXXXXXXXXXXXXXXXXXXXXXXX',
-    );
-    
-    final imageAnalysisService = ImageAnalysisService(
-      baseUrl: 'https://api.sportmaster.ai',
-      apiKey: 'sk-XXXXXXXXXXXXXXXXXXXXXXXX',
-    );
-    
-    final socialMediaService = SocialMediaService(
-      baseUrl: 'https://api.sportmaster.ai',
-      apiKey: 'sk-XXXXXXXXXXXXXXXXXXXXXXXX',
-    );
-    
+    // BodybuildingAgent constructor might need to be updated if it directly took config,
+    // but here it takes service instances which are now using AppConfig.
+    // Assuming BodybuildingAgent itself doesn't directly take baseUrls/apiKeys.
+    // TODO: Add Widget tests for BodybuildingDashboard:
+    // - Verify that all services are initialized in initState.
+    // - Mock BodybuildingAgent and its dependencies (OpenSearchService, etc.).
+    // - Test UI changes based on _isLoading state.
+    // - Test navigation to VirtualCoachScreen.
+    // - If _analysisResults and _recommendations were used:
+    //   - Mock _agent calls to return sample data.
+    //   - Verify UI correctly displays these results/recommendations.
     _agent = BodybuildingAgent(
       openSearchService: openSearchService,
       embeddingService: embeddingService,

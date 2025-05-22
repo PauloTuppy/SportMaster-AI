@@ -2,20 +2,17 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:sportmaster_ai/config/app_config.dart';
 
 class MonitoringService {
-  final String _baseUrl;
-  final String _apiKey;
+  final String _baseUrl = AppConfig.monitoringApiBaseUrl;
+  final String _apiKey = AppConfig.monitoringApiKey; // Or AppConfig.genericApiKey if intended
   final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
   
-  MonitoringService({
-    required String baseUrl,
-    required String apiKey,
-  }) : 
-    _baseUrl = baseUrl,
-    _apiKey = apiKey;
-  
+  // Constructor can be simplified
+  // MonitoringService();
+
   // Inicializar serviço de notificações
   Future<void> initialize() async {
     // Configurar notificações locais
@@ -26,28 +23,38 @@ class MonitoringService {
       android: initializationSettingsAndroid,
     );
     
-    await _notificationsPlugin.initialize(
-      initializationSettings,
-    );
+    try {
+      await _notificationsPlugin.initialize(
+        initializationSettings,
+      );
+    } catch (e, stackTrace) {
+      print('Error initializing local notifications: $e, StackTrace: $stackTrace');
+      // Optionally, rethrow or handle if critical
+    }
     
     // Configurar Firebase Messaging
-    await _firebaseMessaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
-    
-    // Lidar com mensagens recebidas quando o app está em primeiro plano
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      _showLocalNotification(
-        title: message.notification?.title ?? 'Alerta',
-        body: message.notification?.body ?? 'Novo alerta do sistema',
+    try {
+      await _firebaseMessaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
       );
-    });
-    
-    // Registrar para tópicos de alertas
-    await _firebaseMessaging.subscribeToTopic('system_alerts');
-    await _firebaseMessaging.subscribeToTopic('performance_alerts');
+      
+      // Lidar com mensagens recebidas quando o app está em primeiro plano
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        _showLocalNotification(
+          title: message.notification?.title ?? 'Alerta',
+          body: message.notification?.body ?? 'Novo alerta do sistema',
+        );
+      });
+      
+      // Registrar para tópicos de alertas
+      await _firebaseMessaging.subscribeToTopic('system_alerts');
+      await _firebaseMessaging.subscribeToTopic('performance_alerts');
+    } catch (e, stackTrace) {
+      print('Error setting up Firebase Messaging: $e, StackTrace: $stackTrace');
+      // Optionally, rethrow or handle if critical
+    }
   }
   
   // Mostrar notificação local
@@ -84,9 +91,10 @@ class MonitoringService {
           'Content-Type': 'application/json',
         },
         body: jsonEncode(metrics),
-      );
-    } catch (e) {
-      print('Erro ao enviar métricas: $e');
+      ).timeout(const Duration(seconds: 10)); // Example timeout
+    } catch (e, stackTrace) {
+      // Consider more robust local fallback or retry mechanism if metrics are critical
+      print('Erro ao enviar métricas: $e, StackTrace: $stackTrace');
     }
   }
   
@@ -105,9 +113,12 @@ class MonitoringService {
           'stack_trace': stackTrace?.toString(),
           'timestamp': DateTime.now().toIso8601String(),
         }),
-      );
-    } catch (e) {
-      print('Erro ao registrar erro: $e');
+      ).timeout(const Duration(seconds: 10)); // Example timeout
+    } catch (e, sTrace) { // Renamed stackTrace to sTrace to avoid conflict with parameter
+      // This is tricky: if logError itself fails, where do you log that?
+      // Printing to console is often the last resort.
+      // Avoid calling logError recursively here.
+      print('CRITICAL: Failed to send error to monitoring service. Original Error: $errorMessage. Logging Error: $e, StackTrace: $sTrace');
     }
   }
   
@@ -122,16 +133,27 @@ class MonitoringService {
         },
       );
       
+      // Add .timeout(Duration(seconds: 15)) to http.get call for production
       if (response.statusCode == 200) {
-        return jsonDecode(response.body);
+        try {
+          return jsonDecode(response.body);
+        } on FormatException catch (fe, stackTrace) {
+          print('Malformed JSON response for system status: ${response.body}, Error: $fe, StackTrace: $stackTrace');
+          // logError('MonitoringService', 'Malformed JSON for system status: ${response.body}', fe.stackTrace); // Careful with recursion
+          throw Exception('Failed to parse system status response.');
+        }
       } else {
-        throw Exception('Failed to check system status');
+        print('Failed to check system status: ${response.statusCode} ${response.body}');
+        // logError('MonitoringService', 'Failed to check system status: ${response.statusCode} ${response.body}', StackTrace.current); // Careful with recursion
+        throw Exception('Failed to check system status. Status: ${response.statusCode}');
       }
-    } catch (e) {
-      print('Erro ao verificar status do sistema: $e');
+    } catch (e, stackTrace) {
+      // Avoid calling logError if e is from logError itself to prevent loops.
+      // Check if (e is! Exception || !e.toString().contains("CRITICAL")) before logging.
+      print('Erro ao verificar status do sistema: $e, StackTrace: $stackTrace');
       return {
         'status': 'error',
-        'message': 'Não foi possível verificar o status do sistema',
+        'message': 'Não foi possível verificar o status do sistema: $e',
       };
     }
   }

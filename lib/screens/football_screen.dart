@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:sportmaster_ai/services/agent_service.dart';
-import 'package:sportmaster_ai/services/langgraph_service.dart';
-import 'package:sportmaster_ai/services/autogen_service.dart';
 
 class FootballScreen extends StatefulWidget {
   @override
@@ -10,8 +8,6 @@ class FootballScreen extends StatefulWidget {
 
 class _FootballScreenState extends State<FootballScreen> {
   final FootballAgent _agent = FootballAgent();
-  final LangGraphService _langGraph = LangGraphService();
-  final AutoGenService _autoGen = AutoGenService();
   
   Map<String, dynamic> _analysisResults = {};
   Map<String, dynamic> _recommendations = {};

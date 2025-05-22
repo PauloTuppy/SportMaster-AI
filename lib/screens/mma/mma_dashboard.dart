@@ -23,18 +23,11 @@ class _MMADashboardState extends State<MMADashboard> {
     super.initState();
     
     // Inicializar serviços
-    final openSearchService = OpenSearchService(
-      endpoint: 'https://search-sportmaster-xyz.us-east-1.es.amazonaws.com',
-      region: 'us-east-1',
-      accessKey: 'AKIAXXXXXXXXXXXXXXXX',
-      secretKey: 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
-    );
+    // Services now fetch their config from AppConfig directly.
+    final openSearchService = OpenSearchService();
+    final embeddingService = EmbeddingService();
     
-    final embeddingService = EmbeddingService(
-      baseUrl: 'https://api.sportmaster.ai',
-      apiKey: 'sk-XXXXXXXXXXXXXXXXXXXXXXXX',
-    );
-    
+    // Assuming MMAAgent itself doesn't directly take baseUrls/apiKeys.
     _agent = MMAAgent(
       openSearchService: openSearchService,
       embeddingService: embeddingService,

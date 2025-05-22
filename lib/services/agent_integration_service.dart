@@ -1,18 +1,18 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:sportmaster_ai/services/agent_service.dart';
+// import 'package:sportmaster_ai/services/monitoring_service.dart'; // Предполагается, что MonitoringService будет внедрен
+import 'package:sportmaster_ai/config/app_config.dart';
 
 class AgentIntegrationService {
-  final String _baseUrl;
-  final String _apiKey;
+  // final MonitoringService _monitoringService; // Предполагается, что MonitoringService будет внедрен
+  final String _baseUrl = AppConfig.genericApiBaseUrl; // Using genericApiBaseUrl
+  final String _apiKey = AppConfig.genericApiKey; // Using genericApiKey
   
-  AgentIntegrationService({
-    required String baseUrl,
-    required String apiKey,
-  }) : 
-    _baseUrl = baseUrl,
-    _apiKey = apiKey;
-  
+  // Constructor can be simplified if no other parameters are needed for initialization.
+  // AgentIntegrationService(); 
+  // Or if MonitoringService is injected:
+  // AgentIntegrationService(this._monitoringService);
+
   // Combinar recomendações de múltiplos agentes com sistema de votação ponderada
   Future<Map<String, dynamic>> combineRecommendations({
     Map<String, dynamic>? footballRecommendations,
@@ -78,9 +78,10 @@ class AgentIntegrationService {
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
-        throw Exception('Failed to combine recommendations');
+        throw Exception('Failed to combine recommendations: ${response.statusCode} ${response.body}');
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      // _monitoringService.logError('AgentIntegrationService', 'Erro ao combinar recomendações: $e', stackTrace);
       print('Erro ao combinar recomendações: $e');
       
       // Fallback: combinar localmente de forma simples
@@ -159,9 +160,10 @@ class AgentIntegrationService {
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
-        throw Exception('Failed to process user input');
+        throw Exception('Failed to process user input: ${response.statusCode} ${response.body}');
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      // _monitoringService.logError('AgentIntegrationService', 'Erro ao processar entrada do usuário: $e', stackTrace);
       print('Erro ao processar entrada do usuário: $e');
       
       // Fallback: análise local simples

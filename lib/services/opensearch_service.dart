@@ -1,23 +1,26 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:aws_sigv4/aws_sigv4.dart';
+import 'package:sportmaster_ai/config/app_config.dart';
 
 class OpenSearchService {
-  final String _endpoint;
-  final String _region;
-  final String _accessKey;
-  final String _secretKey;
+  final String _endpoint = AppConfig.opensearchEndpoint;
+  final String _region = AppConfig.opensearchRegion;
+  final String _accessKey = AppConfig.opensearchAccessKey;
+  final String _secretKey = AppConfig.opensearchSecretKey;
   
-  OpenSearchService({
-    required String endpoint,
-    required String region,
-    required String accessKey,
-    required String secretKey,
-  }) : 
-    _endpoint = endpoint,
-    _region = region,
-    _accessKey = accessKey,
-    _secretKey = secretKey;
+  // Constructor can be simplified
+  // OpenSearchService();
+
+  // TODO: Add unit tests for OpenSearchService:
+  // - Test constructor uses AppConfig correctly (mock AppConfig or use test values).
+  // - Test _getIndexName for all sportTypes.
+  // - Test _buildHybridQuery with and without embeddings, and with different userData.
+  // - Mock http.post for _executeSearch and indexUserData to test:
+  //   - Successful search and index operations.
+  //   - Different HTTP error codes and error response bodies.
+  //   - JSON parsing errors.
+  //   - SigV4 client request signing (more of an integration test concern).
   
   Future<Map<String, dynamic>> searchAthletes({
     required String sportType,
@@ -113,10 +116,19 @@ class OpenSearchService {
       body: signedRequest.body,
     );
     
+    // Add .timeout(Duration(seconds: 10)) to http.post call for production
     if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+      try {
+        return jsonDecode(response.body);
+      } on FormatException catch (e, stackTrace) {
+        // Consider logging this error to MonitoringService
+        print('Malformed JSON response from OpenSearch search: ${response.body}, Error: $e');
+        throw Exception('Failed to parse OpenSearch search response.');
+      }
     } else {
-      throw Exception('Failed to search OpenSearch: ${response.body}');
+      // Consider logging this error to MonitoringService, including indexName, query, response.statusCode, response.body
+      print('Failed to search OpenSearch index $indexName: ${response.statusCode} ${response.body}');
+      throw Exception('Failed to search OpenSearch. Status: ${response.statusCode}, Body: ${response.body}');
     }
   }
   
@@ -148,8 +160,11 @@ class OpenSearchService {
       body: signedRequest.body,
     );
     
+    // Add .timeout(Duration(seconds: 10)) to http.post call for production
     if (response.statusCode != 201) {
-      throw Exception('Failed to index document: ${response.body}');
+      // Consider logging this error to MonitoringService, including indexName, document, response.statusCode, response.body
+      print('Failed to index document in $indexName: ${response.statusCode} ${response.body}');
+      throw Exception('Failed to index document. Status: ${response.statusCode}, Body: ${response.body}');
     }
   }
 }
